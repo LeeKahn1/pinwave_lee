@@ -230,7 +230,7 @@ class MobileController extends Controller
                 $map->id = $pin->id;
                 $map->title = $pin->title;
                 $map->description = $pin->description;
-                $map->imageUrl = $pin->imagepath ? url(Storage::url('pins/' . $pin->imagepath)) : null;
+                $map->imageUrl = $pin->image_path ? url(Storage::url('pins/' . $pin->image_path)) : null;
                 $map->link = $pin->link;
                 $map->tags = $pin->tags;
                 $map->liked = !is_null($pin->like_id);
@@ -294,6 +294,7 @@ class MobileController extends Controller
                 $commentMap->content = $comment->content;
                 $commentMap->username = $comment->user->username;
                 $commentMap->imageUrl = $comment->user->profile_photo_path ? url(Storage::url($comment->user->profile_photo_path)) : null;
+                $commentMap->createdAt = $comment->created_at;
 
                 $commentsData[] = $commentMap;
             }
@@ -350,8 +351,8 @@ class MobileController extends Controller
             $pin->liked = !is_null($pin->like_id);
             unset($pin->like_id);
 
-            if ($pin->imagepath) {
-                $pin->image_url = url(Storage::url('pins/' . $pin->imagepath));
+            if ($pin->image_path) {
+                $pin->image_url = url(Storage::url('pins/' . $pin->image_path));
             } else {
                 $pin->image_url = null;
             }
@@ -366,7 +367,7 @@ class MobileController extends Controller
             $map->id = $pin->id;
             $map->title = $pin->title;
             $map->description = $pin->description;
-            $map->imageUrl = $pin->imagepath ? url(Storage::url('pins/' . $pin->imagepath)) : null;
+            $map->imageUrl = $pin->image_path ? url(Storage::url('pins/' . $pin->image_path)) : null;
             $map->link = $pin->link;
             $map->tags = $pin->tags;
             $map->liked = !is_null($pin->like_id);
@@ -530,6 +531,7 @@ class MobileController extends Controller
         try {
             $notifications = DB::table('notifications')
                 ->where('notifiable_id', $request->user()->id)
+                ->orderBy('created_at', 'desc')
                 ->get();
 
             $json = [];
@@ -611,6 +613,7 @@ class MobileController extends Controller
             $pins = Pin::where('user_id', $user->id)->get();
             $likesCount = $user->likes->count();
             $followersCount = $user->followers->count();
+            $followingCount = $user->following->count();
 
             $users = new \stdClass();
             $users->username = $user->username;
@@ -619,6 +622,7 @@ class MobileController extends Controller
             $users->pinsCount = $pins->count();
             $users->likesCount = $likesCount;
             $users->followersCount = $followersCount;
+            $users->followingCount = $followingCount;
 
             $pin = [];
 
@@ -747,6 +751,37 @@ class MobileController extends Controller
                 $album->pins()->detach($pin);
 
                 return response()->json("Successfully remove pin from $album->name Album", 200);
+            }
+        } catch (\Exception $e) {
+            return response()->json($e->getMessage(), 500);
+        }
+    }
+
+    // fungsi untuk Download Pin Image (POST)
+    public function downloadPinImage(Request $request) {
+        try {
+            $pin = Pin::find($request->pinId);
+
+            if ($pin != null) {
+                $filePath = storage_path('app/public/pins/' . $pin->image_path);
+
+                if (file_exists($filePath)) {
+                    $fileContent = file_get_contents($filePath);
+
+                    $timeNow = time();
+
+                    $fileInfo = pathinfo($filePath);
+
+                    return response()->make($fileContent, 200, [
+                        'Content-Type' => mime_content_type($filePath),
+                        'Content-Disposition' => 'inline; filename="' . basename($filePath) . '"',
+                        'Content-Name' => $pin->title . '_' . $timeNow . '.' . $fileInfo['extension'],
+                    ]);
+                } else {
+                    return response()->json('File not found.', 404);
+                }
+            } else {
+                return response()->json('File not found.', 404);
             }
         } catch (\Exception $e) {
             return response()->json($e->getMessage(), 500);

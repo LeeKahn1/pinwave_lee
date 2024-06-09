@@ -31,4 +31,5 @@ Route::middleware(['auth-api'])->group( function () {
     Route::get('albums', [MobileController::class, 'albumListName']);
     Route::get('albums/pins', [MobileController::class, 'pinAlbumThumbnailList']);
     Route::post('albums/add', [MobileController::class, 'addAlbumName']);
+    Route::post('pins/download/', [MobileController::class, 'downloadPinImage']);
 });
